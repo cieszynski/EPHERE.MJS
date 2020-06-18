@@ -269,10 +269,22 @@ class Moon extends CelestialObject {
             r: R
         }
     }
+
+    // The result is a real number in the range 0 to 1, 
+    // where 0 means the moon is new, 0.5 means it is full, found at:
+    // http://community.facer.io/t/moon-phase-formula-updated/35691/5
+    age(jd) {
+        const j = (jd - J1970) * 86400000;
+        return (((j / 2551442844 - 0.228535)
+            + 0.00591997 * Math.sin(j / 5023359217 + 3.1705094)
+            + 0.017672776 * Math.sin(j / 378923968 - 1.5388144)
+            - 0.0038844429 * Math.sin(j / 437435791 + 2.0017235)
+            - 0.00041488 * Math.sin(j / 138539900 - 1.236334)) % 1);
+    }
 }
 
 function topoc(al, r) {
-    let mpar = asin( 1/r );
+    let mpar = asin(1 / r);
     return al - mpar * cos(al)
 }
 function test() {
@@ -280,6 +292,8 @@ function test() {
     const jd = JD(2020, 6, 8);
     let UT = 0;
 
+    // https://ssd.jpl.nasa.gov/?planet_eph_export
+    // ftp://ssd.jpl.nasa.gov/pub/eph/planets/ascii/de405/
     function test_sun() {
         log("-- test_sun ---------------------------------------------")
         const sun = new Sun()
@@ -330,22 +344,22 @@ function test() {
         let LHA = moon.local_hour_angle(jd, UT, lon)
         let az = moon.azimuth(LHA, lat, pos.dec);
         let al = moon.altitude(LHA, lat, pos.dec) // TODO topocentric_correction
-        al = topoc(al, pos.r); 
+        al = topoc(al, pos.r);
         log(hhmm(UT * 24).join(':'), "(6:01)",
             (az * deg).toFixed(2), "(-130°)",
             (al * deg).toFixed(2), "(0°)")
 
         UT = 2.2 / 24; // 2:12 / 2020 6 18
         pos = moon.equatorial_coordinates(jd + 10);
-        
+
         LHA = moon.local_hour_angle(jd + 10, UT, lon)
         az = moon.azimuth(LHA, lat, pos.dec);
         al = moon.altitude(LHA, lat, pos.dec) // TODO topocentric_correction
-        al = topoc(al, pos.r); 
+        al = topoc(al, pos.r);
         log(hhmm(UT * 24).join(':'), "(2:12)",
             (az * deg).toFixed(2), "(66°)",
             (al * deg).toFixed(2), "(0°)");
-            moon.illumination(jd);
+        // moon.illumination(jd);
         /*         for (var i = 1; i < 30; i++) {
                     let illu = moon.illumination(jd - 7 + i);
                     log(i, illu.fraction, illu.phase, illu.angle)
@@ -355,5 +369,22 @@ function test() {
     test_moon()
 }
 
-test()
+//test()
+function test_now() {
+    //const lon = 0, lat = 51.479539; // greenwich
+    const lon = 7.463889, lat = 51.514167; // Dortmund
+    const now = new Date();
+    const jd = JD(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate());
+    const jd2 = JD(2020, 6, 15);
 
+    const sun = new Sun();
+    let UT = 10.9855 / 24; // 11:59
+    let pos = sun.equatorial_coordinates(jd);
+    let LHA = sun.local_hour_angle(jd, UT, lon)
+    let az = sun.azimuth(LHA, lat, pos.dec);
+    let al = sun.altitude(LHA, lat, pos.dec)
+
+    log((al * deg).toFixed(2), (az * deg).toFixed(2))
+    log(az)
+}
+test_now()
