@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        label {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <form id="data"></form>
+    <label>Now: <output name="now" form="data">--.---</output></label>
+    <label>lat: <output name="lat" form="data">--.---</output></label>
+    <label>lon: <output name="lon" form="data">--.---</output></label>
+    <hr />
+    <label>rise:
+        <output name="rise" form="data">--.---</output> (<output name="riseat" form="data">--.---</output>)°
+    </label>
+    <label>noon:
+        <output name="noon" form="data">--.---</output> (<output name="noonat" form="data">--.---</output>)°
+    </label>
+    <label>set:
+        <output name="set" form="data">--.---</output> (<output name="setat" form="data">--.---</output>)°
+    </label>
+    <hr />
+    <label>moon rise:
+        <output name="moon_rise" form="data">--.---</output> (<output name="moon_riseat" form="data">--.---</output>)°
+    </label>
+    <label>moon noon:
+        <output name="moon_noon" form="data">--.---</output> (<output name="moon_noonat" form="data">--.---</output>)°
+    </label>
+    <label>moon set:
+        <output name="moon_set" form="data">--.---</output> (<output name="moon_setat" form="data">--.---</output>)°
+    </label>
+</body>
+<script type="module">
+    import * as ephere from './ephere.mjs';
+    import Moon from './moon.mjs';
+    import Sun from './sun.mjs';
+    import Mecury from './mecury.mjs';
+
+    const
+        deg = 180 / Math.PI,
+        rad = Math.PI / 180;
+
+    function topocentric_correction(r, al) {
+        let mpar = Math.asin(1 / r);
+        return al - mpar * Math.cos(al);
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (result) => {
+            let now = new Date()
+            
+            let tz = now.getTimezoneOffset() / -60
+            let jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate());
+            let lat = result.coords.latitude;
+            let lon = result.coords.longitude;
+            document.forms.data.elements.now.value = now.toString();
+            document.forms.data.elements.lat.value = lat;
+            document.forms.data.elements.lon.value = lon;
+            lat *= rad;
+            lon *= rad;
+
+            const sun = new Sun();
+            let [hhrise, hhset, above] = sun.riset(jd, tz, lat, lon, ephere.ANGLES.SUN)
+            let hhnoon = (hhset - hhrise) / 2 + hhrise
+
+            document.forms.data.elements.rise.value = ephere.hhmm(hhrise);
+            document.forms.data.elements.noon.value = ephere.hhmm(hhnoon);
+            document.forms.data.elements.set.value = ephere.hhmm(hhset);
+
+            const [hr, mr, sr] = ephere.hhmmss(hhrise);
+            now.setHours(hr)
+            now.setMinutes(mr)
+            now.setSeconds(sr)
+
+            jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds());
+
+            let [rr, rar, decr] = sun.rradec(jd);
+            let [azr, alr] = sun.azal(jd, lat, lon, rar, decr);
+            
+            document.forms.data.elements.riseat.value = (deg * azr).toFixed(0);
+
+            const [hn, mn, sn] = ephere.hhmmss(hhnoon);
+            now.setHours(hn)
+            now.setMinutes(mn)
+            now.setSeconds(sn)
+
+            jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds());
+
+            let [rn, ran, decn] = sun.rradec(jd);
+            let [azn, aln] = sun.azal(jd, lat, lon, ran, decn);
+
+            document.forms.data.elements.noonat.value = (deg * azn).toFixed(0);
+
+            const [hs, ms, ss] = ephere.hhmmss(hhset);
+            now.setHours(hs)
+            now.setMinutes(ms)
+            now.setSeconds(ss)
+
+            jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds());
+            let [rs, ras, decs] = sun.rradec(jd);
+            let [azs, als] = sun.azal(jd, lat, lon, ras, decs);
+
+            document.forms.data.elements.setat.value = (deg * azs).toFixed(0);
+
+
+            // MOON 
+            jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate());
+            const moon = new Moon();
+            let [hhriseM, hhsetM, aboveM] = moon.riset(jd, tz, lat, lon, ephere.ANGLES.MOON);
+
+            let hhnoonM = 0;
+
+            const [hrm, mrm, srm] = ephere.hhmmss(hhriseM);
+            now.setHours(hrm)
+            now.setMinutes(mrm)
+            now.setSeconds(srm)
+
+            jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds());
+            
+            let [rrm, rarm, decrm] = moon.rradec(jd);
+            let [azrm, alrm] = moon.azal(jd, lat, lon, rarm, decrm);
+          //  alrm = topocentric_correction(rr, alrm) 
+
+            document.forms.data.elements.moon_rise.value = (hhriseM != null) ? ephere.hhmm(hhriseM) : '---';
+            document.forms.data.elements.moon_riseat.value = (deg * azrm).toFixed(0);
+
+            document.forms.data.elements.moon_noon.value = ephere.hhmm(hhnoonM);
+
+            const [hsm, msm, ssm] = ephere.hhmmss(hhsetM);
+            now.setHours(hsm)
+            now.setMinutes(msm)
+            now.setSeconds(ssm)
+
+            jd = ephere.JD(
+                now.getUTCFullYear(),
+                now.getUTCMonth() + 1,
+                now.getUTCDate(),
+                now.getUTCHours(),
+                now.getUTCMinutes(),
+                now.getUTCSeconds());
+
+            let [rsm, rasm, decsm] = moon.rradec(jd);
+            let [azsm, alsm] = moon.azal(jd, lat, lon, rasm, decsm);
+           // alsm = topocentric_correction(rr, alsm) 
+
+            document.forms.data.elements.moon_set.value = (hhsetM != null) ? ephere.hhmm(hhsetM) : '---';
+            document.forms.data.elements.moon_setat.value = (deg * azsm).toFixed(0);
+
+            const mecury = new Mecury();
+            jd = ephere.JD(2020, 6, 25, 12, 39)
+            let [rsme, rasme, decsme] = mecury.rradec(jd);
+            let [azsme, alsme] = mecury.azal(jd, lat, lon, rasme, decsme);
+
+            console.log(azsme*deg, alsme*deg)
+        },
+        (err) => {
+            switch (err.code) {
+                case GeolocationPositionError.PERMISSION_DENIED:
+                case GeolocationPositionError.POSITION_UNAVAILABLE:
+                case GeolocationPositionError.TIMEOUT:
+                    console.error(err.code);
+            }
+        });
+</script>
+
+</html>
