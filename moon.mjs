@@ -1,7 +1,30 @@
+// Copyright (C) 2020 Stephan Cieszynski
+// 
+// This file is part of EPHERE.MJS.
+// 
+// EPHERE.MJS is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// EPHERE.MJS is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with EPHERE.MJS.  If not, see <http://www.gnu.org/licenses/>.
+
 /* moon.mjs */
 import { CelestialObject } from './ephere.mjs'
 
-const cos = Math.cos;
+const PI = Math.PI,
+    cos = Math.cos,
+    sin = Math.sin,
+    round = Math.round,
+    deg = 180 / PI,
+    rad = PI / 180,
+    J2000 = 2451545.0;
 
 const x = (t) => {
     let x0 = 0.0;
@@ -3389,6 +3412,9 @@ const z = (t) => {
 }
 
 export default class Moon extends CelestialObject {
+
+    h0 = 8 / 60;
+    
     xyz = (t, origin) => {
         let [x1, y1, z1] = origin
         let [x2, y2, z2] = [x(t), y(t), z(t)]
@@ -3400,18 +3426,61 @@ export default class Moon extends CelestialObject {
         return [(x3 + x1), (y3 + y1), (z3 + z1)].map((n, i) => n - origin[i]);
     }
 
-    xyza = (t, origin) => {
-        const earth = new Earth()
-        let [x1, y1, z1] = earth.xyz(t);
-        const emb = new Emb()
-        let [x2, y2, z2] = emb.xyz(t);
+    fraction = (T) => {
+        // https://github.com/Shiva-Iyer/kepler/blob/master/src/moonphase.c
+        const D = 297.8501921 + (445267.1114034 + (-0.0018819 +
+            (1.0 / 545868.0 - 1.0 / 113065000.0 * T) * T) * T) * T;
+        const M = 357.5291092 + (35999.0502909 +
+            (-0.0001536 + 1.0 / 24490000.0 * T) * T) * T;
+        const N = 134.9633964 + (477198.8675055 + (0.0087414 +
+            (1.0 / 69699.0 - 1.0 / 14712000.0 * T) * T) * T) * T;
 
-        let [x3, y3, z3] = [
-            (x2 - x1) * (1 + 1 / 0.01230073677),
-            (y2 - y1) * (1 + 1 / 0.01230073677),
-            (z2 - z1) * (1 + 1 / 0.01230073677)
-        ]
+        const i = 180 - D - 6.289 * sin(N * rad) + 2.100 * sin(M * rad) -
+            1.274 * sin((2 * D - N) * rad) - 0.658 * sin(2 * D * rad) -
+            0.214 * sin(2 * N * rad) - 0.110 * sin(D * rad);
+        return (round((1 + cos(i * rad)) * 50) / 100);
+    }
 
-        return [x3 + x1, y3 + y1, z3 + z1];
+    fullmoon = (jd) => {
+        // https://github.com/Shiva-Iyer/kepler/blob/master/src/moonphase.c
+        const A0 = [299.77, 251.88, 251.83, 349.42, 84.66, 141.74, 207.14,
+            154.84, 34.52, 207.19, 291.34, 161.72, 239.56, 331.55];
+        const A1 = [0.107408, 0.016321, 26.651886, 36.412478, 18.206239,
+            53.303771, 2.453732, 7.306860, 27.261239, 0.121824,
+            1.844379, 24.198154, 25.513099, 3.592518];
+        const Ac = [325, 165, 164, 126, 110, 62, 60, 56, 47, 42, 40, 37, 35, 23];
+
+        let k = round((jd - J2000) * 12.3685 / 365.25);
+        k += 0.50;
+
+        const T = k / 1236.85;
+        const J = 2451550.09766 + 29.530588861 * k +
+            (1.5437E-4 * T + (-1.50E-7 * T + 7.3E-10 * T * T) * T) * T;
+        const E = 1.0 - (2.516E-3 + 7.4E-6 * T) * T;
+        const M = (2.5534 + 29.10535670 * k - (1.4E-6 + 1.1E-7 * T) * T * T) * rad;
+        const N = (201.5643 + 385.81693528 * k + (0.0107582 * T +
+            (1.238E-5 * T - 5.8E-8 * T * T) * T) * T) * rad;
+        const F = (160.7108 + 390.67050284 * k + (-0.0016118 * T +
+            (-2.27E-6 * T + 1.1E-8 * T * T) * T) * T) * rad;
+        const O = (124.7746 - 1.56375588 * k + (0.0020672 + 2.15E-6 * T) * T * T) * rad;
+
+        let C1 = -0.40614 * sin(N) + 0.17302 * E * sin(M) + 0.01614 * sin(2 * N) +
+            0.01043 * sin(2 * F) + 7.34E-3 * E * sin(N - M) - 5.15E-3 * E * sin(N + M) +
+            2.09E-3 * E * E * sin(2 * M);
+        const C2 = 0;
+        C1 += -1.11E-3 * sin(N - 2 * F) - 5.7E-4 * sin(N + 2 * F) + 5.6E-4 * E * sin(2 * N + M) -
+            4.2E-4 * sin(3 * N) + (4.2E-4 * sin(M + 2 * F) + 3.8E-4 * sin(M - 2 * F) -
+                2.4E-4 * sin(2 * N - M)) * E - 1.7E-4 * sin(O) - 7E-5 * sin(N + 2 * M) +
+            4E-5 * (sin(2 * N - 2 * F) + sin(3 * M)) + 3E-5 * (sin(N + M - 2 * F) +
+                sin(2 * N + 2 * F) - sin(N + M + 2 * F) + sin(N - M + 2 * F)) -
+            2E-5 * (sin(N - M - 2 * F) + sin(3 * N + M) - sin(4 * N));
+
+        let C3 = 0;
+        A0[0] -= 9.173E-3 * T * T;
+        for (let i = 0; i < 14; i++)
+            C3 += sin((A0[i] + A1[i] * k) * rad) * Ac[i];
+        C3 /= 1E6;
+
+        return (J + C1 + C2 + C3);
     }
 }

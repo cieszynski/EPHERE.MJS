@@ -1,4 +1,21 @@
-/* mecury.mjs */
+// Copyright (C) 2020 Stephan Cieszynski
+// 
+// This file is part of EPHERE.MJS.
+// 
+// EPHERE.MJS is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// EPHERE.MJS is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with EPHERE.MJS.  If not, see <http://www.gnu.org/licenses/>.
+
+/* mercury.mjs */
 import { CelestialObject } from './ephere.mjs'
 
 const cos = Math.cos;
@@ -6425,7 +6442,10 @@ const x = (t) =>{
     return z0+z1+z2+z3+z4+z5;
  }
 
-export default class Mecury extends CelestialObject {
+export default class Mercury extends CelestialObject {
+
+    h0 = -0.69;
+    
     xyz = (t, origin) => {
         return [x(t), y(t), z(t)].map((n, i) => n - origin[i]);
     }
