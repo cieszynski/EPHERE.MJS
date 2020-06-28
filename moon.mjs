@@ -24,6 +24,7 @@ const PI = Math.PI,
     round = Math.round,
     deg = 180 / PI,
     rad = PI / 180,
+    J1970 = 2440587.5,
     J2000 = 2451545.0;
 
 const x = (t) => {
@@ -3414,7 +3415,7 @@ const z = (t) => {
 export default class Moon extends CelestialObject {
 
     h0 = 8 / 60;
-    
+
     xyz = (t, origin) => {
         let [x1, y1, z1] = origin
         let [x2, y2, z2] = [x(t), y(t), z(t)]
@@ -3424,6 +3425,18 @@ export default class Moon extends CelestialObject {
             (z2 - z1) * (1 + 1 / 0.01230073677)
         ]
         return [(x3 + x1), (y3 + y1), (z3 + z1)].map((n, i) => n - origin[i]);
+    }
+
+    // The result is a real number in the range 0 to 1, 
+    // where 0 means the moon is new, 0.5 means it is full, found at:
+    // http://community.facer.io/t/moon-phase-formula-updated/35691/5
+    age(jd) {
+        const j = (jd - J1970) * 86400000;
+        return (((j / 2551442844 - 0.228535)
+            + 0.00591997 * sin(j / 5023359217 + 3.1705094)
+            + 0.017672776 * sin(j / 378923968 - 1.5388144)
+            - 0.0038844429 * sin(j / 437435791 + 2.0017235)
+            - 0.00041488 * sin(j / 138539900 - 1.236334)) % 1);
     }
 
     fraction = (T) => {
@@ -3438,7 +3451,7 @@ export default class Moon extends CelestialObject {
         const i = 180 - D - 6.289 * sin(N * rad) + 2.100 * sin(M * rad) -
             1.274 * sin((2 * D - N) * rad) - 0.658 * sin(2 * D * rad) -
             0.214 * sin(2 * N * rad) - 0.110 * sin(D * rad);
-        return (round((1 + cos(i * rad)) * 50) / 100);
+        return (((1 + cos(i * rad)) * 50) / 100);
     }
 
     fullmoon = (jd) => {
