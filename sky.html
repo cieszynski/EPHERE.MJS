@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>sky</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        html,
+        body {
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            position: absolute;
+            background: black;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas></canvas>
+    <a href="/">url</a>text
+</body>
+
+<script src="epherem.js"></script>
+<script src="sky.js"></script>
+<script>
+    const sky = new Sky(document.querySelector('canvas'), {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        projection: new StereoGraphic(),
+        planets: [new Sun()],
+        lat: 51.514167,
+        lon: 7.463889
+    })
+
+    fetch('stars.json')
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            sky.stars = data;
+            sky.draw();
+        });
+
+    fetch('constellations.json')
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            sky.constellations = data;
+            sky.draw();
+        });
+
+    fetch(`${navigator.language}.json`)
+        .then(function (response) {
+            if (response.ok) {
+                return response.json();
+            }
+            return fetch('en-EN.json')
+                .then(function (response) {
+                    return response.json();
+                })
+        })
+        .then(function (data) {
+            sky.i18n = data;
+            sky.draw();
+        });
+
+    window.onresize = function (e) {
+        sky.width = window.innerWidth;
+        sky.height = window.innerHeight;
+        sky.draw();
+    }
+
+/*     window.setInterval(function () {
+        const date = new Date();
+        sky.jd = JD(
+            date.getUTCFullYear(),
+            date.getUTCMonth() + 1,
+            date.getUTCDate(),
+            date.getUTCHours(),
+            date.getUTCMinutes(),
+            date.getUTCSeconds());
+        sky.draw();
+    }, 10000); */
+
+    navigator.geolocation.watchPosition(
+        function (result) {
+            sky.lat = result.coords.latitude;
+            sky.lon = result.coords.longitude;
+
+            const date = new Date();
+            sky.jd = JD(
+                date.getUTCFullYear(),
+                date.getUTCMonth() + 1,
+                date.getUTCDate(),
+                date.getUTCHours(),
+                date.getUTCMinutes(),
+                date.getUTCSeconds());
+            sky.draw();
+        },
+        function (error) {
+            switch (error.code) {
+                case 0: // GeolocationPositionError.PERMISSION_DENIED:
+                case 1: // GeolocationPositionError.POSITION_UNAVAILABLE:
+                case 2: // GeolocationPositionError.TIMEOUT:
+                    console.error(error.code);
+            }
+        }
+    );
+</script>
+<script async src="moon.js" onload="sky.planets.push(new Moon());sky.draw()"></script>
+<script async src="mars.js" onload="sky.planets.push(new Mars());sky.draw()"></script>
+<script async src="uranus.js" onload="sky.planets.push(new Uranus());sky.draw()"></script>
+<script async src="jupiter.js" onload="sky.planets.push(new Jupiter());sky.draw()"></script>
+<script async src="mercury.js" onload="sky.planets.push(new Mercury());sky.draw()"></script>
+<script async src="neptune.js" onload="sky.planets.push(new Neptune());sky.draw()"></script>
+<script async src="saturn.js" onload="sky.planets.push(new Saturn());sky.draw()"></script>
+<script async src="venus.js" onload="sky.planets.push(new Venus());sky.draw()"></script>
+
+</html>
